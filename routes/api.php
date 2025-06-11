@@ -10,6 +10,7 @@ use App\Http\Controllers\api\v1\OrderController;
 use App\Http\Controllers\api\v1\CouponController;
 use App\Http\Controllers\api\v1\AddressController;
 use App\Http\Controllers\api\v1\ContactController;
+use App\Http\Controllers\api\v1\PaymentController;
 use App\Http\Controllers\api\v1\PrivacyController;
 use App\Http\Controllers\api\v1\ProductController;
 use App\Http\Controllers\api\v1\CategoryController;
@@ -27,7 +28,6 @@ use App\Http\Controllers\api\v1\LandingPageInfoController;
 use App\Http\Controllers\api\v1\ProductCarouselController;
 use App\Http\Controllers\api\v1\CategoryCarouselController;
 use App\Http\Controllers\api\v1\ShippingDeliveryController;
-use App\Http\Controllers\api\v1\StripeControllerController;
 use App\Http\Controllers\api\v1\RefundCencellationController;
 
 Route::get('/user', function (Request $request) {
@@ -396,13 +396,13 @@ Route::group(['prefix'=> 'v1'], function () {
            // Payment routes here
            Route::group(['prefix'=> 'v1'], function () {
             // store terms and condition
-            Route::post('/payment/initiate', [StripeControllerController::class,'storePayment'])->middleware('api.auth');
+            Route::post('/payment/initiate', [PaymentController::class,'storePayment'])->middleware('api.auth');
             // get all terms and condition
-            Route::get('/payment', [StripeControllerController::class,'getPayment']);
+            Route::get('/payment', [PaymentController::class,'getPayment']);
             // success route
-            Route::get('/stripe/success', [StripeControllerController::class,'success'])->name('stripe.success');
-            Route::get('/stripe/cancel', [StripeControllerController::class,'cancel'])->name('stripe.cancel');
-            Route::get('/stripe/failed', [StripeControllerController::class,'failed'])->name('stripe.failed');
+            Route::get('/stripe/success', [PaymentController::class,'success'])->name('stripe.success');
+            Route::get('/stripe/cancel', [PaymentController::class,'cancel'])->name('stripe.cancel');
+            Route::get('/stripe/failed', [PaymentController::class,'failed'])->name('stripe.failed');
            });
 
 
@@ -462,3 +462,10 @@ Route::group(['prefix'=> 'v1'], function () {
             // get all terms and condition
             Route::get('/dashboard', [DashboardController::class,'getDashboard']);
            });
+
+
+
+           // SSL Commerz
+            Route::post('/PaymentSuccess', [PaymentController::class, 'PaymentSuccess'])->name('ssl.success');
+            Route::post('/PaymentFail', [PaymentController::class, 'PaymentFail'])->name('ssl.fail');
+            Route::post('/PaymentCancel', [PaymentController::class, 'PaymentCancel'])->name('ssl.cancel');
