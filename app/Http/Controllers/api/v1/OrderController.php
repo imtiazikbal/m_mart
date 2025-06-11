@@ -144,7 +144,8 @@ class OrderController extends ResponseController
                                 'products.title',
                                 DB::raw('IFNULL(products.price - (products.price * (products.discountPercent / 100)), products.price) as unitPrice'), // Discounted price
                                 'products.productQuantity',
-                                DB::raw('(IFNULL(products.price - (products.price * (products.discountPercent / 100)), products.price) * products.productQuantity) as totalPrice')
+                                DB::raw('(IFNULL(products.price - (products.price * (products.discountPercent / 100)), products.price) * products.productQuantity) as totalPrice'),
+                                'invoice_products.size'
                             )
                             ->where('invoice_products.invoiceId', $id)
                             ->get();
@@ -156,6 +157,7 @@ class OrderController extends ResponseController
                                     'unitPrice' => (int) $product->unitPrice,
                                     'quantity' => (int) $product->productQuantity,
                                     'totalPrice' => (int) $product->totalPrice,
+                                    'size' => (string) $product->size
                                 ];
                             });
                 

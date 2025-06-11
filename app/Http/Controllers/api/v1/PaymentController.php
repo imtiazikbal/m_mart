@@ -108,6 +108,7 @@ private function prepareCartData($userId, array $items): array
             'quantity' => $item['quantity'],
             'discountPercent' => $item['discountPercent'] ?? 0,
             'price' => $item['price'],
+            'size' => $item['size'] ?? null,
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -165,6 +166,7 @@ private function storeInvoiceProducts($invoiceId, array $cartData, $userId)
             'userId' => $userId,
             'salePrice' => $product['price'],
             'quantity' => $product['quantity'],
+            'size' => $product['size'],
             'created_at' => now(),
             'updated_at' => now(),
         ];
