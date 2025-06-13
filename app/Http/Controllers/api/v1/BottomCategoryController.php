@@ -24,7 +24,7 @@ class BottomCategoryController extends ResponseController
             return $this->sendError('Validation Error', $validator->errors(), 422);
         }
 
-        $category = DB::table('bottom_categories')->where('id', $request->categoryId)->first();
+        $category = DB::table('categories')->where('id', $request->categoryId)->first();
         if (!$category) {
             return $this->sendError('Category not found', [], 404);
         }
