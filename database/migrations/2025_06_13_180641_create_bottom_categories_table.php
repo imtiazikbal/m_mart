@@ -11,15 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories_carousel', function (Blueprint $table) {
-            $table->id();
-            $table->string('isVideo')->default(0); // 1 or 0
-            $table->string(column: 'src');
-            $table->string(column: 'title');
-
+        Schema::create('bottom_categories', function (Blueprint $table) {
+           $table->id();
             $table->unsignedBigInteger('categoryId');
-            $table->foreign('categoryId')->references('id')->on('categories')->onDelete('cascade');
             $table->unsignedBigInteger('subCategoryId');
+            $table->string(column: 'image');
+            $table->foreign('categoryId')->references('id')->on('categories')->onDelete('cascade');
             $table->foreign('subCategoryId')->references('id')->on('sub_categories')->onDelete('cascade');
             $table->string('status')->default('Active');
             $table->timestamps();
@@ -31,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories_carousel');
+        Schema::dropIfExists('bottom_categories');
     }
 };

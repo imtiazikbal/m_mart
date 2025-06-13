@@ -59,45 +59,9 @@ class CategoryController extends ResponseController
         }
 
         
-        if($request->file('cover')){
-            $categoryCover = $request->file('cover');
-             // Define the path where you want to store the file
-         $path = 'categories/covers'; // Example path, adjust as needed
- 
-         // Use the UploadService to upload the file to S3
-         $categoryCoverUrl= S3Service::uploadSingle($categoryCover, $path);
-
-        }
-
-        if($request->file('icon')){
-            $categoryIcon = $request->file('icon');
-            $path = 'categories/icons'; // Example path, adjust as needed
- 
-            // Use the UploadService to upload the file to S3
-            $categoryIconUrl= S3Service::uploadSingle($categoryIcon, $path);
-        }
-
-        if($request->file('thumbnail')){
-            $thumbnailIcon = $request->file('thumbnail');
-            $path = 'categories/thumbnail'; // Example path, adjust as needed
- 
-            // Use the UploadService to upload the file to S3
-            $thumbnailIconUrl= S3Service::uploadSingle($thumbnailIcon, $path);
-        }
-
-
-
-     
-        
-        $categoryCover = $request->file('cover');
-        $category = DB::table('categories')->insert([
+       
+     DB::table('categories')->insert([
             'name' => $request->name,
-            'showInHeaderBar' => $request->showInHeaderBar,
-            'showInIconBar' => $request->showInIconBar,
-            'showInProductBar' => $request->showInProductBar,
-            'icon' => $categoryIconUrl ?? null,
-            'cover' => $categoryCoverUrl ?? null,
-            'thumbnail' => $thumbnailIconUrl ?? null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -134,66 +98,9 @@ public function updateCategory(Request $request) {
         }
     }
 
-    // Update cover if a new file is uploaded
-    if ($request->file('cover')) {
-        $categoryCover = $request->file('cover');
-        $path = 'categories/covers';
-
-        // Delete the old cover file from S3
-        if ($category->cover) {
-            S3Service::deleteFile($category->cover);
-        }
-
-        // Upload the cover file to S3
-        $categoryCoverUrl = S3Service::uploadSingle($categoryCover, $path);
-    } else {
-        // Keep the current cover URL if no new file is provided
-        $categoryCoverUrl = $category->cover;
-    }
-
-    // Update icon if a new file is uploaded
-    if ($request->file('icon')) {
-        $categoryIcon = $request->file('icon');
-        $path = 'categories/icons';
-// Delete the old cover file from S3
-if ($category->icon) {
-    S3Service::deleteFile($category->icon);
-}
-        // Upload the icon file to S3
-        $categoryIconUrl = S3Service::uploadSingle($categoryIcon, $path);
-    } else {
-        // Keep the current icon URL if no new file is provided
-        $categoryIconUrl = $category->icon;
-    }
-
-    // Update thumbnail if a new file is uploaded
-    if ($request->file('thumbnail')) {
-        $thumbnailIcon = $request->file('thumbnail');
-        // Delete the old cover file from S3
-if ($category->icon) {
-    S3Service::deleteFile($category->icon);
-}
-        $path = 'categories/thumbnail';
-        // Upload the thumbnail file to S3
-        $thumbnailIconUrl = S3Service::uploadSingle($thumbnailIcon, $path);
-    } else {
-        // Keep the current thumbnail URL if no new file is provided
-        $thumbnailIconUrl = $category->thumbnail;
-    }
-
-
-
-
-
     // Update category in the database
     DB::table('categories')->where('id', $id)->update([
         'name' => $request->name ?? $category->name,
-        'showInHeaderBar' => $request->showInHeaderBar ?? $category->showInHeaderBar,
-        'showInIconBar' => $request->showInIconBar ?? $category->showInIconBar,
-        'showInProductBar' => $request->showInProductBar ?? $category->showInProductBar,
-        'icon' => $categoryIconUrl,
-        'cover' => $categoryCoverUrl,
-        'thumbnail' => $thumbnailIconUrl,
         'updated_at' => now(),
     ]);
 
@@ -235,13 +142,7 @@ public function deleteCategory(Request $request, $id) {
          return $this->sendError('Category not found', [], 404);
      }
 
-     // 2. Delete associated files from S3
-     $filesToDelete = [$category->icon, $category->cover, $category->thumbnail];
-     foreach ($filesToDelete as $file) {
-         if (isset($file) && $file !== null) {
-             S3Service::deleteFile($file);
-         }
-     }
+   
 
      // 3. Find all subcategories associated with this category
      $subCategories = DB::table('sub_categories')->where('categoryId', $id)->get();
@@ -276,28 +177,12 @@ public function deleteCategory(Request $request, $id) {
          ->where('categoryId', $id)
          ->update(['deleted_at' => Carbon::now()]); // Soft delete
 
-     // 7. Soft delete the sub-subcategories associated with the subcategories (if needed)
-     foreach ($subCategories as $subCategory) {
-         DB::table('sub_sub_categories')
-             ->where('subCategoryId', $subCategory->id)
-             ->update(['deleted_at' => Carbon::now()]); // Soft delete
-     }
-
      // 8. Finally, delete the category
      DB::table('categories')->where('id', $id)->update(['deleted_at' => Carbon::now()]); // Soft delete
 
     return $this->sendResponse(
         'Category deleted successfully', 'Category deleted successfully.');
     }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -316,65 +201,24 @@ public function deleteCategory(Request $request, $id) {
          $categories = DB::table('categories')
              ->where('categories.status', 'Active') // Only active categories
              ->whereNull('categories.deleted_at') // Exclude deleted categories
-             ->leftJoin('sub_categories', function ($join) {
-                 $join->on('sub_categories.categoryId', '=', 'categories.id')
-                      ->where('sub_categories.status', 'Active')  // Only active subcategories
-                      ->whereNull('sub_categories.deleted_at');
-             })
-             ->leftJoin('sub_sub_categories', function ($join) {
-                 $join->on('sub_sub_categories.subCategoryId', '=', 'sub_categories.id')
-                      ->where('sub_sub_categories.status', 'Active')  // Only active sub-sub-categories\
-                      ->whereNull('sub_sub_categories.deleted_at');
-             })
+
+
              ->select(
-                 DB::raw('CAST(categories.id AS CHAR) as category_id'),
-                 'categories.name as category_name',
-                 DB::raw('CAST(sub_categories.id AS CHAR) as sub_category_id'),
-                 'sub_categories.name as sub_category_name',
-                 DB::raw('CAST(sub_sub_categories.id AS CHAR) as sub_sub_category_id'),
-                 'sub_sub_categories.name as sub_sub_category_name'
+                 'categories.id',
+                 'categories.name',
+                 'categories.satatus'
              )
              ->get();
      
          // Transform the data into the required nested structure
-         $responseData = [];
-         foreach ($categories as $category) {
-             // Find or create the category in the response data
-             $categoryIndex = array_search($category->category_id, array_column($responseData, 'id'));
-             if ($categoryIndex === false) {
-                 $responseData[] = [
-                     'id' => (string) $category->category_id,
-                     'name' => (string) $category->category_name,
-                     'subCategory' => []
-                 ];
-                 $categoryIndex = count($responseData) - 1;
-             }
-     
-             // Check if there is an active subcategory
-             if ($category->sub_category_id) {
-                 $subCategories = &$responseData[$categoryIndex]['subCategory'];
-     
-                 // Find or create the sub-category in the category's subCategory array
-                 $subCategoryIndex = array_search($category->sub_category_id, array_column($subCategories, 'id'));
-                 if ($subCategoryIndex === false) {
-                     $subCategories[] = [
-                         'id' => (string) $category->sub_category_id,
-                         'title' => (string) $category->sub_category_name,
-                         'subSubCategory' => []
-                     ];
-                     $subCategoryIndex = count($subCategories) - 1;
-                 }
-     
-                 // Add the sub-sub-category to the sub-category's subSubCategory array only if it exists
-                 if ($category->sub_sub_category_id) {
-                     $subCategories[$subCategoryIndex]['subSubCategory'][] = [
-                         'id' => (string) $category->sub_sub_category_id,
-                         'title' => (string) $category->sub_sub_category_name
-                     ];
-                 }
-             }
-         }
-     
+         $responseData = $categories->map(function ($category) {
+             return [
+                 'id' => $category->id,
+                 'name' => $category->name,
+                 'status' => $category->status,
+             ];
+         });
+         
          // Return the data in the required response structure
          return $this->sendResponse($responseData,'Header categories retrieved successfully');
      }

@@ -18,9 +18,11 @@ use App\Http\Controllers\api\v1\SettingsController;
 use App\Http\Controllers\api\v1\DashboardController;
 use App\Http\Controllers\api\v1\SubscribeController;
 use App\Http\Controllers\api\v1\SubCategoryController;
+use App\Http\Controllers\api\v1\TopCategoryController;
 use App\Http\Controllers\api\v1\ReturnPolicyController;
 use App\Http\Controllers\api\v1\ProductReviewController;
 use App\Http\Controllers\api\v1\RefundPrivacyController;
+use App\Http\Controllers\api\v1\BottomCategoryController;
 use App\Http\Controllers\api\v1\QuestionAnswerController;
 use App\Http\Controllers\api\v1\SubSubCategoryController;
 use App\Http\Controllers\api\v1\TermsConditionController;
@@ -98,6 +100,9 @@ Route::group(['prefix'=> 'v1'], function () {
 
     // get all products for admin
     Route::get('/admin/product', [ProductController::class,'getAllProductForAdmin']);
+
+    // get single product for admin
+    Route::get('/admin/product/{id}', [ProductController::class,'getSingleProductForAdmin']);
 
 
     // Product gallery Image delete
@@ -219,6 +224,9 @@ Route::group(['prefix'=> 'v1'], function () {
      Route::delete('/subcategory/{id}', [SubCategoryController::class,'deleteSubCategory'])->middleware('api.auth');
     // get all categories
     Route::get('/subcategory', [SubCategoryController::class,'getAllSubCategory'])->middleware('api.auth');
+       // getSubCategoriesByCategoryId
+    Route::get('/subcategories/{categoryId}', [SubCategoryController::class,'getSubCategoriesByCategoryId']);
+
 });
 
 
@@ -237,7 +245,7 @@ Route::group(['prefix'=> 'v1'], function () {
      Route::delete('/subsubcategory/{id}', [SubSubCategoryController::class,'deleteSubSubCategory'])->middleware('api.auth');
     // get all categories
     Route::get('/subsubcategory', [SubSubCategoryController::class,'getAllSubSubCategory'])->middleware('api.auth');
-});
+ });
 
 
 
@@ -462,6 +470,39 @@ Route::group(['prefix'=> 'v1'], function () {
             // get all terms and condition
             Route::get('/dashboard', [DashboardController::class,'getDashboard']);
            });
+
+
+
+
+        // Top category routes here
+           Route::group(['prefix'=> 'v1'], function () {
+            // get all terms and condition
+            Route::post('/top/category', [TopCategoryController::class,'store']);
+            Route::post('/top/category/{id}', [TopCategoryController::class,'update']);
+            Route::get('/top/category', [TopCategoryController::class,'getAll']);
+            Route::delete('/top/category/{id}', [TopCategoryController::class,'delete']);
+
+           });
+
+
+            // Bottom category routes here
+           Route::group(['prefix'=> 'v1'], function () {
+            // get all terms and condition
+            Route::post('/bottom/category', [BottomCategoryController::class,'store']);
+            Route::post('/bottom/category/{id}', [BottomCategoryController::class,'update']);
+            Route::get('/bottom/category', [BottomCategoryController::class,'getAll']);
+            Route::delete('/bottom/category/{id}', [BottomCategoryController::class,'delete']);
+
+           });
+
+
+
+
+
+
+
+
+
 
 
 

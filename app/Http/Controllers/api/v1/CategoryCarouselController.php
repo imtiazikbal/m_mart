@@ -17,7 +17,6 @@ class CategoryCarouselController extends ResponseController
 
        try{
         $validator = Validator::make($request->all(), [
-            'isVideo' => 'required',
             'src' => 'required',
             'categoryId' => 'required',
         ]);
@@ -39,9 +38,10 @@ class CategoryCarouselController extends ResponseController
 
 
         DB::table('categories_carousel')->insert([
-            'isVideo' => $request->isVideo,
+            'subCategoryId' => $request->subCategoryId,
             'src' => $categoryCarouselUrl,
             'categoryId' => $request->categoryId,
+            'title' => $request->title,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -95,28 +95,25 @@ class CategoryCarouselController extends ResponseController
         try{
         $categoryCarousel = DB::table('categories_carousel')
         ->leftJoin('categories', 'categories_carousel.categoryId', '=', 'categories.id')
+        ->leftJoin('sub_categories', 'categories_carousel.subCategoryId', '=', 'sub_categories.id')
         ->select(
-            'categories_carousel.*',
+            'categories_carousel.id as id',
+            'categories_carousel.src',
+            'categories_carousel.status',
+            'categories_carousel.title as title',
             'categories.name as categoryName',
-            'categories.id as categoryId'
+            'categories.id as categoryId',
+            'sub_categories.id as subCategoryId',
+            'sub_categories.name as subCategoryName',
+            'categories_carousel.created_at as date',
         )
         ->get();
 
-        $modifiedCategoryCarousel = $categoryCarousel->map(function ($category) {
-            return [
-                'id' => (string) $category->id,
-                'isVideo' => $category->isVideo,
-                'src' => $category->src,
-                'categoryId' => (string) $category->categoryId,
-                'categoryName' => $category->categoryName,
-                'status' => $category->status,
-                'date' => $category->created_at
-            ];
-        });
+       
 
-        return $this->sendResponse($modifiedCategoryCarousel, 'Category Carousel fetched successfully');
+        return $this->sendResponse($categoryCarousel, 'Category Carousel fetched successfully');
        }catch(Exception $e){
-        return $this->sendError('Something went wrong', [], 500);
+        return $this->sendError('Something went wrong'. $e->getMessage(), [], 500);
        }
     }
 }

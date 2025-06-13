@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\api\v1;
 
-use App\Services\S3Service;
 use Exception;
+use App\Services\S3Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -142,10 +142,10 @@ class ProductController extends ResponseController
                 'title' => (string) $item->title,
                 'price' => (float) $item->price,
                 'discountPercent' => (float) $item->discountPercent,
-                'productQuantity' => (int) $item->productQuantity,
-                'displayImageSrc' => (string) $item->displayImageSrc,
+                // 'productQuantity' => (int) $item->productQuantity,
+                'imageUrl' => (string) $item->displayImageSrc,
                 'status' => (string) $item->status, // Assuming status is a column in products
-                'totalReview' => $countTotalProductReview,
+                // 'totalReview' => $countTotalProductReview,
             ];
         });
         return $this->sendResponse($modifiedData, 'Product retrieved successfully.');
@@ -183,13 +183,16 @@ class ProductController extends ResponseController
             }
         }
 
-        $displayImageSrcFile = $request->file('displayImageSrc');
+        $displayImageSrcFile = $request->file('thumbnailImageSrc');
         $path = 'products/display_images'; // Example path, adjust as needed
         $displayImageSrc = S3Service::uploadSingle($displayImageSrcFile, $path);
 
-        $hoverImageSrcFile = $request->file('hoverImageSrc');
-        $path = 'products/hover_images'; // Example path, adjust as needed
-        $hoverImageSrc = S3Service::uploadSingle($hoverImageSrcFile, $path);
+        $hoverImageSrcFile = null;
+        if ($request->hasFile('hoverImageSrc')) {
+            $hoverImageSrcFile = $request->file('hoverImageSrc');
+            $path = 'products/hover_images'; // Example path, adjust as needed
+            $hoverImageSrc = S3Service::uploadSingle($hoverImageSrcFile, $path);
+        }
 
         $product = DB::table('products')->insertGetId([
             'title' => $request->title,
@@ -803,5 +806,107 @@ $relatedProductsModified = $relatedProducts->map(function ($product) {
         return $this->sendResponse($products, 'Discount able products');
     }
     
+    // getSingleProductForAdmin
+    public function getSingleProductForAdmin($productId)
+    {
+    try{
+       // Fetch the product with its associated categories, sub-categories, and sub-sub-categories
+        $singleProduct = DB::table('products')
+            ->leftJoin('categories', 'products.categoryId', '=', 'categories.id')
+            ->leftJoin('sub_categories', 'products.subCategoryId', '=', 'sub_categories.id')
+            ->leftJoin('sub_sub_categories', 'products.subSubCategoryId', '=', 'sub_sub_categories.id')
+            ->where('products.id', $productId)
+            ->whereNull('products.deleted_at')
+            ->select(
+                'products.id as id',
+                'products.title as title',
+                DB::raw('CAST(products.price AS DECIMAL(10,2)) as price'),
+                DB::raw('CAST(products.discountPercent AS DECIMAL(10,2)) as discountPercent'),
+                'products.displayImageSrc as displayImageSrc',
+                'products.hoverImageSrc as hoverImageSrc',
+                'products.categoryId as categoryId',
+                'products.subCategoryId as subCategoryId',
+                'products.subSubCategoryId as subSubCategoryId',
+                DB::raw('CAST(products.productQuantity AS UNSIGNED) as productQuantity'),
+                'products.material as material',
+                'products.size as size',
+                'products.capacity as capacity',
+                'products.isFeatured as isFeatured',
+                'products.isBestSelling as isBestSelling',
+                'products.isFestiveDelights as isFestiveDelights',
+                'products.isRecommended as isRecommended',
+                'products.description as description',
+                'products.status as status',
+
+                // Include category, sub-category, and sub-sub-category names (or null if not found)
+                'categories.id as categoryId',
+                'categories.name as categoryName',
+                'sub_categories.id as subCategoryId',
+                'sub_categories.name as subCategoryName',
+                'sub_sub_categories.id as subSubCategoryId',
+                'sub_sub_categories.name as subSubCategoryName'
+            )
+            ->first();
+
+        // Check if the product was found
+        if (!$singleProduct) {
+            return $this->sendError('Product not found', [], 404);
+        }
+
+        // Fetch gallery images for the product
+        $galleryImages = DB::table('product_galleries')
+            ->where('productId', $productId)
+            ->pluck('galleryImageSrc');
+
+        // Fetch reviews for the product
+// Fetch the list of reviews with customer details
+        $reviewList = DB::table('product_reviews')
+            ->join('users', 'product_reviews.userId', '=', 'users.id')
+            ->where('product_reviews.productId', $productId)
+            ->select(
+                'product_reviews.id',
+                'product_reviews.rating',
+                'product_reviews.review',
+                DB::raw("CONCAT(users.firstName, ' ', users.lastName) as customerName"),
+                'product_reviews.created_at as date'
+            )
+            ->get();
+
+// Fetch the average rating for the product
+        $averageRating = DB::table('product_reviews')
+            ->where('product_reviews.productId', $productId)
+            ->avg('rating');
+
+// Round to one decimal place if needed
+        $averageRating = round($averageRating, 1);
+
+        // Fetch FAQs for the product
+        $faqList = DB::table('ask_questions')
+            ->where('productId', $productId)
+            ->select('id', 'question', 'answer')
+            ->get();
+
+        // Prepare the final response structure
+        $response = [
+            'id' => (string) $singleProduct->id,
+            'title' => (string) $singleProduct->title,
+            'price' => (float) $singleProduct->price,
+            'discountPercent' => (float) $singleProduct->discountPercent,
+            'imageUrl' => (string) $singleProduct->displayImageSrc,
+            'categoryName' => (string) $singleProduct->categoryName,
+            'subCategoryName' => (string) $singleProduct->subCategoryName,
+            'size' => json_decode($singleProduct->size),
+            'description' => (string) $singleProduct->description,
+            'totalReview' => $averageRating ?? 0,
+        ];
+
+        // Return the response
+        return $this->sendResponse($response, 'Single Product retrive');
+    
+
+    }catch(Exception $e){
+        return $this->sendError('', $e->getMessage(), 0);   
+    }
+    }
 
 }

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\api\v1;
 
+use Exception;
+use Carbon\Carbon;
 use App\Services\S3Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 
 class SubCategoryController extends ResponseController
@@ -67,17 +68,9 @@ return $this->sendResponse($modifiedSubCategories, 'All subCategories');
         if ($findSubCategoryByName) {
             return $this->sendError('Sub Category already exists', [], 409);
         }
-
-        if ($request->file('cover')) {
-            $subCategoryCover = $request->file('cover');
-            $path = 'sub_categories/covers'; // Example path, adjust as needed
-            $subCategoryCoverUrl = S3Service::uploadSingle($subCategoryCover, $path);
-        }
-
         DB::table('sub_categories')->insert([
             'name' => $request->name,
             'categoryId' => $request->categoryId,
-            'cover' => $subCategoryCoverUrl ?? null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -107,20 +100,10 @@ return $this->sendResponse($modifiedSubCategories, 'All subCategories');
             return $this->sendError('Sub Category not found', [], 404);
         }
 
-        if ($request->file('cover')) {
-            $subCategoryCover = $request->file('cover');
-            $path = 'sub_categories/covers'; // Example path, adjust as needed
-            // Delete old cover
-            S3Service::deleteFile($subCategory->cover);
-            $subCategoryCoverUrl = S3Service::uploadSingle($subCategoryCover, $path);
-        } else {
-            $subCategoryCoverUrl = $subCategory->cover;
-        }
 
         DB::table('sub_categories')->where('id', $id)->update([
             'name' => $request->name ?? $subCategory->name,
             'categoryId' => $request->categoryId ?? $subCategory->categoryId,
-            'cover' => $subCategoryCoverUrl ?? $subCategory->cover,
             'updated_at' => now(),
         ]);
 
@@ -159,10 +142,6 @@ return $this->sendResponse($modifiedSubCategories, 'All subCategories');
             return $this->sendError('Sub Category not found', [], 404);
         }
 
-        // Delete old cover
-        if($subCategory->cover && $subCategory->cover != null) {
-            S3Service::deleteFile($subCategory->cover);
-        }
 
             // Delete all sub-subcategories associated with this subcategory
             DB::table('sub_sub_categories')->where('subCategoryId', $id)->delete();
@@ -172,17 +151,6 @@ return $this->sendResponse($modifiedSubCategories, 'All subCategories');
           // Products related to sub-subcategories (if applicable)
             ->update(['deleted_at' => Carbon::now()]); 
 
-//  get all sub sub categories id from subcategory id
-
-        $subSubCategories = DB::table('sub_sub_categories')
-            ->where('subCategoryId', $id)
-            ->pluck('id');
-            // update all products to deleted at
-           if(count($subSubCategories) > 0) {
-            DB::table('products')
-            ->whereIn('subSubCategoryId', $subSubCategories)
-            ->update(['deleted_at' => Carbon::now()]);
-           }
 
         DB::table('sub_categories')->where('id', $id)->update([
             'deleted_at' => Carbon::now(),
@@ -190,5 +158,23 @@ return $this->sendResponse($modifiedSubCategories, 'All subCategories');
 
 
         return $this->sendResponse('Sub Category deleted successfully', 'Sub Category deleted successfully.');
+    }
+
+    // get all sub categories by category id 
+    public function getSubCategoriesByCategoryId($categoryId)
+    {
+        try{
+            $subCategories = DB::table('sub_categories')
+            ->leftJoin('categories', 'sub_categories.categoryId', '=', 'categories.id')
+            ->where('categoryId', $categoryId)
+            ->select('sub_categories.id as id','sub_categories.name', 'categories.name as categoryName', 'categories.status','categories.id as categoryId')
+            ->get();
+
+
+
+        return $this->sendResponse($subCategories, 'Sub Categories retrieved successfully.');
+        }catch(Exception $e){
+            return $this->sendError('Error', $e->getMessage(), 500);
+        }
     }
 }
