@@ -103,10 +103,10 @@ class S3Service
 
            if(env('APP_ENV') == 'local'){
              // Return the public URL for the uploaded file
-             return asset("public/$path/$fileName");
+             return asset("/$path/$fileName");
            }else{
              // Return the public URL for the uploaded file
-             return asset("public/$path/$fileName");
+             return asset("/$path/$fileName");
            }
         } catch (\Exception $e) {
             // Log any errors
