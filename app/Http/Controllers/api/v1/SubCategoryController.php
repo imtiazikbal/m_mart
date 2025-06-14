@@ -34,7 +34,7 @@ class SubCategoryController extends ResponseController
         return [
             'id' =>(string) $subCategory->id,
             'name' => $subCategory->name,
-            'cover' => $subCategory->cover,
+            // 'cover' => $subCategory->cover,
             'categoryId' => $subCategory->categoryId,
             'categoryName' => $subCategory->categoryName,
             'status' => $subCategory->status

@@ -27,12 +27,12 @@ class CategoryController extends ResponseController
             return [
                 'id' => (string) $category->id,
                 'name' => $category->name,
-                'icon' => $category->icon,
-                'cover' => $category->cover,
-                'thumbnail' => $category->thumbnail,
-                'showInProductBar' => $category->showInProductBar,
-                'showInIconBar' => $category->showInIconBar,
-                'showInHeaderBar' => $category->showInHeaderBar,
+                // 'icon' => $category->icon,
+                // 'cover' => $category->cover,
+                // 'thumbnail' => $category->thumbnail,
+                // 'showInProductBar' => $category->showInProductBar,
+                // 'showInIconBar' => $category->showInIconBar,
+                // 'showInHeaderBar' => $category->showInHeaderBar,
                 'status' => $category->status
 
             ];
