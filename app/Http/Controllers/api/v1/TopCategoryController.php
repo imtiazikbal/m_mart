@@ -117,4 +117,22 @@ class TopCategoryController extends ResponseController
             return $this->sendError('Something went wrong', [], 500);
            }
     }
+
+    // getAllForFrontend
+    public function getAllForFrontend(){
+        try{
+            $topCategories = DB::table('top_categories')->
+            leftJoin('categories', 'top_categories.categoryId', '=', 'categories.id')
+            ->leftJoin('sub_categories', 'top_categories.subCategoryId', '=', 'sub_categories.id')->
+            select(
+                'top_categories.image as imageUrl',
+                'categories.name as categoryName',
+                'sub_categories.name as subCategoryName',
+            )->
+            get();
+            return $this->sendResponse($topCategories, 'Top categories fetched successfully');
+           }catch(Exception $e){
+            return $this->sendError('Something went wrong', [], 500);
+           }
+    }
 }

@@ -12,59 +12,40 @@ class ProductController extends ResponseController
 {
 
 // get single product by id
-    public function getSingleProduct($productId)
-    {
-        // Fetch the product with its associated categories, sub-categories, and sub-sub-categories
-        $singleProduct = DB::table('products')
+   public function getSingleProduct($productId)
+{
+    try {
+        // Fetch the main product
+        $product = DB::table('products')
             ->leftJoin('categories', 'products.categoryId', '=', 'categories.id')
             ->leftJoin('sub_categories', 'products.subCategoryId', '=', 'sub_categories.id')
-            ->leftJoin('sub_sub_categories', 'products.subSubCategoryId', '=', 'sub_sub_categories.id')
             ->where('products.id', $productId)
             ->whereNull('products.deleted_at')
             ->select(
-                'products.id as id',
-                'products.title as title',
-                DB::raw('CAST(products.price AS DECIMAL(10,2)) as price'),
-                DB::raw('CAST(products.discountPercent AS DECIMAL(10,2)) as discountPercent'),
-                'products.displayImageSrc as displayImageSrc',
-                'products.hoverImageSrc as hoverImageSrc',
-                'products.categoryId as categoryId',
-                'products.subCategoryId as subCategoryId',
-                'products.subSubCategoryId as subSubCategoryId',
-                DB::raw('CAST(products.productQuantity AS UNSIGNED) as productQuantity'),
-                'products.material as material',
-                'products.size as size',
-                'products.capacity as capacity',
-                'products.isFeatured as isFeatured',
-                'products.isBestSelling as isBestSelling',
-                'products.isFestiveDelights as isFestiveDelights',
-                'products.isRecommended as isRecommended',
-                'products.description as description',
-                'products.status as status',
-
-                // Include category, sub-category, and sub-sub-category names (or null if not found)
-                'categories.id as categoryId',
+                'products.*',
                 'categories.name as categoryName',
-                'sub_categories.id as subCategoryId',
-                'sub_categories.name as subCategoryName',
-                'sub_sub_categories.id as subSubCategoryId',
-                'sub_sub_categories.name as subSubCategoryName'
+                'sub_categories.name as subCategoryName'
             )
             ->first();
 
-        // Check if the product was found
-        if (!$singleProduct) {
+        if (!$product) {
             return $this->sendError('Product not found', [], 404);
         }
 
-        // Fetch gallery images for the product
-        $galleryImages = DB::table('product_galleries')
-            ->where('productId', $productId)
-            ->pluck('galleryImageSrc');
+        // Format sizes
+        $sizes = [];
+        $decodedSizes = json_decode($product->size, true);
+        if (is_array($decodedSizes)) {
+            foreach ($decodedSizes as $s) {
+                $sizes[] = [
+                    'size' => $s['size'] ?? '',
+                    'stock' => (int)($s['quantity'] ?? 0),
+                ];
+            }
+        }
 
-        // Fetch reviews for the product
-// Fetch the list of reviews with customer details
-        $reviewList = DB::table('product_reviews')
+        // Fetch reviews
+        $reviews = DB::table('product_reviews')
             ->join('users', 'product_reviews.userId', '=', 'users.id')
             ->where('product_reviews.productId', $productId)
             ->select(
@@ -72,56 +53,78 @@ class ProductController extends ResponseController
                 'product_reviews.rating',
                 'product_reviews.review',
                 DB::raw("CONCAT(users.firstName, ' ', users.lastName) as customerName"),
-                'product_reviews.created_at as date'
+                DB::raw("DATE(product_reviews.created_at) as date")
             )
             ->get();
 
-// Fetch the average rating for the product
-        $averageRating = DB::table('product_reviews')
-            ->where('product_reviews.productId', $productId)
-            ->avg('rating');
-
-// Round to one decimal place if needed
-        $averageRating = round($averageRating, 1);
-
-        // Fetch FAQs for the product
-        $faqList = DB::table('ask_questions')
+        // Fetch FAQs
+        $faqs = DB::table('ask_questions')
             ->where('productId', $productId)
             ->select('id', 'question', 'answer')
             ->get();
 
-        // Prepare the final response structure
+        // Fetch related products (same subCategory, excluding current)
+        $relatedRaw = DB::table('products')
+            ->where('subCategoryId', $product->subCategoryId)
+            ->where('id', '!=', $productId)
+            ->whereNull('deleted_at')
+            ->limit(8)
+            ->get();
+
+        $relatedProducts = [];
+
+        foreach ($relatedRaw as $related) {
+            $relSizes = [];
+            $decoded = json_decode($related->size, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $s) {
+                    $relSizes[] = [
+                        'size' => $s['size'] ?? '',
+                        'stock' => (int)($s['quantity'] ?? 0),
+                    ];
+                }
+            }
+
+            $relatedProducts[] = [
+                'id' => (string) $related->id,
+                'title' => $related->title,
+                'price' => (float) $related->price,
+                'discountPercent' => (float) $related->discountPercent,
+                'imageUrl' => $related->displayImageSrc,
+                'sizes' => $relSizes
+            ];
+        }
+
+        // Final formatted response
         $response = [
-            'id' => (string) $singleProduct->id,
-            'title' => (string) $singleProduct->title,
-            'price' => (float) $singleProduct->price,
-            'discountPercent' => (float) $singleProduct->discountPercent,
-            'displayImageSrc' => (string) $singleProduct->displayImageSrc,
-            'hoverImageSrc' => (string) $singleProduct->hoverImageSrc,
-            'categoryId' => (string) $singleProduct->categoryId,
-            'categoryName' => (string) $singleProduct->categoryName,
-            'subCategoryId' => (string) $singleProduct->subCategoryId,
-            'subCategoryName' => (string) $singleProduct->subCategoryName,
-            'subSubCategoryId' => (string) $singleProduct->subSubCategoryId,
-            'subSubCategoryName' => (string) $singleProduct->subSubCategoryName,
-            'productQuantity' => (int) $singleProduct->productQuantity,
-            'material' => (string) $singleProduct->material,
-            'size' => (string) $singleProduct->size,
-            'capacity' => (string) $singleProduct->capacity,
-            'isFeatured' => (string) $singleProduct->isFeatured,
-            'isBestSelling' => (string) $singleProduct->isBestSelling,
-            'isFestiveDelights' => (string) $singleProduct->isFestiveDelights,
-            'isRecommended' => (string) $singleProduct->isRecommended,
-            'description' => (string) $singleProduct->description,
-            'galleryImages' => $galleryImages->toArray(), // Convert collection to array
-            'reviewList' => $reviewList ?? [],
-            'faqList' => $faqList,
-            'star' => $averageRating ?? 0,
+            'id' => (string) $product->id,
+            'title' => $product->title,
+            'price' => (float) $product->price,
+            'discountPercent' => (float) $product->discountPercent,
+            'imageUrl' => $product->displayImageSrc,
+            'sizes' => $sizes,
+            'categoryName' => $product->categoryName,
+            'subCategoryName' => $product->subCategoryName,
+            'createdAt' => date('Y-m-d', strtotime($product->created_at)),
+            'description' => $product->description,
+            'reviews' => $reviews,
+            'faqs' => $faqs,
+            'relatedProducts' => $relatedProducts
         ];
 
-        // Return the response
-        return $this->sendResponse($response, 'Single Product retrive');
+        return response()->json([
+            'success' => true,
+            'data' => $response
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Something went wrong',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
+
 
 // getAllCategoryForAdmin cat sub sub cat
 
@@ -908,5 +911,267 @@ $relatedProductsModified = $relatedProducts->map(function ($product) {
         return $this->sendError('', $e->getMessage(), 0);   
     }
     }
+
+
+    // getLatestCollections
+  public function getLatestCollections()
+{
+    try {
+        // Step 1: Get the most recent sub-category
+        $latestSubCategory = DB::table('sub_categories')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$latestSubCategory) {
+            return $this->sendResponse([], 'No sub-categories found');
+        }
+
+        // Step 2: Get latest 10 products from that sub-category
+        $products = DB::table('products')
+            ->where('subCategoryId', $latestSubCategory->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        $result = $products->map(function ($product) {
+    $decodedSizes = json_decode($product->size, true); // Decode as associative array
+    $modifiedSizes = [];
+
+    if (is_array($decodedSizes)) {
+        foreach ($decodedSizes as $size) {
+            $modifiedSizes[] = [
+                'size' => $size['size'],
+                'stock' => (int) $size['quantity'], // Rename & cast to int
+            ];
+        }
+    }
+            return [
+                'id' => $product->id,
+                'title' => $product->title,
+                'price' =>(int) $product->price,
+                'discountPercent' => (int) $product->discountPercent,
+                'imageUrl' => $product->displayImageSrc,
+                'sizes' => $modifiedSizes
+            ];
+        });
+
+        return $this->sendResponse($result, 'Latest Collections');
+    } catch (Exception $e) {
+        return $this->sendError('Something went wrong', [], 500);
+    }
+}
+
+// latest 8 products
+
+  public function getLatestEightProducts()
+{
+    try {
+       
+
+        // Step 2: Get latest 10 products from that sub-category
+        $products = DB::table('products')
+            ->orderBy('created_at', 'desc')
+            ->limit(8)
+            ->get();
+        $result = $products->map(function ($product) {
+    $decodedSizes = json_decode($product->size, true); // Decode as associative array
+    $modifiedSizes = [];
+
+    if (is_array($decodedSizes)) {
+        foreach ($decodedSizes as $size) {
+            $modifiedSizes[] = [
+                'size' => $size['size'],
+                'stock' => (int) $size['quantity'], // Rename & cast to int
+            ];
+        }
+    }
+            return [
+                'id' => $product->id,
+                'title' => $product->title,
+                'price' =>(int) $product->price,
+                'discountPercent' => (int) $product->discountPercent,
+                'imageUrl' => $product->displayImageSrc,
+                'sizes' => $modifiedSizes
+            ];
+        });
+
+        return $this->sendResponse($result, 'Latest Collections');
+    } catch (Exception $e) {
+        return $this->sendError('Something went wrong', [], 500);
+    }
+}
+
+// getUniqueSizeProduct by query cat and sub 
+public function getUniqueSizeProduct(Request $request)
+{
+    try {
+        $categoryName = $request->query('category');
+        $subCategoryName = $request->query('subCategory');
+
+        // Base query
+        $query = DB::table('products');
+
+        // Filter by category name
+        if ($categoryName) {
+            $category = DB::table('categories')->where('name', $categoryName)->first();
+            if (!$category) {
+                return $this->sendResponse([], 'No sizes found for invalid category');
+            }
+            $query->where('categoryId', $category->id);
+        }
+
+        // Filter by sub-category name
+        if ($subCategoryName) {
+            $subCategory = DB::table('sub_categories')->where('name', $subCategoryName)->first();
+            if (!$subCategory) {
+                return $this->sendResponse([], 'No sizes found for invalid sub-category');
+            }
+            $query->where('subCategoryId', $subCategory->id);
+        }
+
+        // Fetch products and extract sizes
+        $products = $query->pluck('size');
+
+        $sizes = [];
+
+        foreach ($products as $jsonSize) {
+            $decoded = json_decode($jsonSize, true);
+
+            if (is_array($decoded)) {
+                foreach ($decoded as $entry) {
+                    if (!empty($entry['size'])) {
+                        $sizes[] = $entry['size'];
+                    }
+                }
+            }
+        }
+
+        // Return unique sizes
+        $uniqueSizes = array_values(array_unique($sizes));
+
+        return $this->sendResponse($uniqueSizes, 'Unique Sizes fetched successfully');
+    } catch (Exception $e) {
+        return $this->sendError('Something went wrong', [], 500);
+    }
+}
+
+// getProductList
+public function getProductList(Request $request)
+{
+    try {
+        // Input parameters
+        $search = $request->query('search');
+        $categoryName = $request->query('category');
+        $subCategoryName = $request->query('subCategory');
+        $page = $request->query('page', 1);
+        $limit = $request->query('limit', 20);
+        $minPrice = $request->query('minPrice', 0);
+        $maxPrice = $request->query('maxPrice', 1000000);
+        $sort = $request->query('sort'); // "low-high", "high-low", "latest"
+
+        // Base query
+        $query = DB::table('products')
+            ->leftJoin('categories', 'products.categoryId', '=', 'categories.id')
+            ->leftJoin('sub_categories', 'products.subCategoryId', '=', 'sub_categories.id')
+            ->select(
+                'products.id',
+                'products.title',
+                'products.price',
+                'products.displayImageSrc as imageUrl',
+                'products.size',
+                'categories.name as categoryName',
+                'sub_categories.name as subCategoryName'
+            )
+            ->whereBetween('products.price', [$minPrice, $maxPrice]);
+
+        // Apply filters
+        if ($search) {
+            $query->where('products.title', 'like', '%' . $search . '%');
+        }
+
+        if ($categoryName) {
+            $category = DB::table('categories')->where('name', $categoryName)->first();
+            if ($category) {
+                $query->where('products.categoryId', $category->id);
+            }
+        }
+
+        if ($subCategoryName) {
+            $subCategory = DB::table('sub_categories')->where('name', $subCategoryName)->first();
+            if ($subCategory) {
+                $query->where('products.subCategoryId', $subCategory->id);
+            }
+        }
+
+        // Sorting
+        if ($sort === 'low-high') {
+            $query->orderBy('products.price', 'asc');
+        } elseif ($sort === 'high-low') {
+            $query->orderBy('products.price', 'desc');
+        } elseif ($sort === 'latest') {
+            $query->orderBy('products.created_at', 'desc');
+        } else {
+            $query->orderBy('products.id', 'desc'); // default
+        }
+
+        // Pagination
+        $totalItems = $query->count();
+        $totalPages = ceil($totalItems / $limit);
+        $products = $query->skip(($page - 1) * $limit)->take($limit)->get();
+
+        // Min & Max price in database for reference
+        $priceRange = DB::table('products')->select(
+            DB::raw('MIN(price) as minPrice'),
+            DB::raw('MAX(price) as maxPrice')
+        )->first();
+
+        // Format response
+        $formattedProducts = [];
+
+        foreach ($products as $product) {
+            $sizes = [];
+
+            $decodedSizes = json_decode($product->size, true);
+            if (is_array($decodedSizes)) {
+                foreach ($decodedSizes as $s) {
+                    $sizes[] = [
+                        'size' => $s['size'] ?? '',
+                        'stock' => (int)($s['quantity'] ?? 0),
+                    ];
+                }
+            }
+
+            $formattedProducts[] = [
+                'id' => $product->id,
+                'title' => $product->title,
+                'price' => (float)$product->price,
+                'imageUrl' => $product->imageUrl,
+                'sizes' => $sizes,
+                'categoryName' => $product->categoryName,
+                'subCategoryName' => $product->subCategoryName,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'products' => $formattedProducts,
+                'currentPage' => (int)$page,
+                'totalPages' => (int)$totalPages,
+                'totalItems' => $totalItems,
+                'minPrice' => (float)($priceRange->minPrice ?? 0),
+                'maxPrice' => (float)($priceRange->maxPrice ?? 0),
+            ]
+        ]);
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Something went wrong',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
+
 
 }

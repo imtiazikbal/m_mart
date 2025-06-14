@@ -168,65 +168,60 @@ class AuthController extends ResponseController
            try{
              // Retrieve userId from headers or respond with an error if missing
              $userId = $request->headers->get('userID');
-             if (!$userId) {
-                 return $this->sendError('User ID not provided', [], 400);
-             }
-             $userData = DB::table('users')->where('id', $userId)->first();
-             if (!$userData) {
-                 return $this->sendError('User not found', [], 404);
-             }
+ // Fetch user
+        $user = DB::table('users')->where('id', $userId)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+                'data' => null
+            ]);
+        }
+        if(!$user){
+            return $this->sendError('User not found', [], 404);
+        }
          
-             // Use a single query to retrieve user info along with address data
-             $user = DB::table('users')
-                       ->leftJoin('addresses', 'users.id', '=', 'addresses.user_id')
-                       ->where('users.id', $userId)
-                       ->select(
-                           'users.firstName as userFirstName', 
-                           'users.lastName as userLastName', 
-                           'users.email',
-                           'addresses.id as addressId',
-                           'addresses.firstName as addressFirstName',
-                           'addresses.lastName as addressLastName',
-                           'addresses.country',
-                           'addresses.city',
-                           'addresses.postCode',
-                           'addresses.address',
-                           'addresses.phone'
-                       )
-                       ->get();
-         
-             // Check if user exists
-             if ($user->isEmpty()) {
-                 return $this->sendError('User not found', [], 404);
-             }
-         
-             // Separate user info and address data
-             $info = [
-                 'firstName' => $user->first()->userFirstName,
-                 'lastName' => $user->first()->userLastName,
-                 'email' => $user->first()->email,
-             ];
-         
-             // Map address data if present
-             $addresses = $user->filter(fn($record) => $record->addressId !== null)
-                               ->map(fn($address) => [
-                                   'id' => $address->addressId,
-                                   'firstName' => $address->addressFirstName,
-                                   'lastName' => $address->addressLastName,
-                                   'country' => $address->country,
-                                   'city' => $address->city,
-                                   'postCode'=> $address->postCode,
-                                   'address' => $address->address,
-                                   'phone' => $address->phone,
-                               ]);
-         
-             // Prepare final data array
-             $data = [
-                 'info' => $info,
-                 'address' => $addresses,
-             ];
-         
-             return $this->sendResponse($data, 'User profile retrieved successfully.');
+                    // Fetch user invoices
+        $orders = DB::table('invoices')
+            ->where('userId', $userId)
+            ->orderByDesc('created_at')
+            ->get();
+
+        $orderDetails = [];
+
+        foreach ($orders as $order) {
+            // Fetch invoice products
+            $items = DB::table('invoice_products')
+                ->join('products', 'invoice_products.productId', '=', 'products.id')
+                ->where('invoice_products.invoiceId', $order->id)
+                ->select(
+                    'products.title as name',
+                    'invoice_products.size as variant'
+                )
+                ->get();
+
+            $orderDetails[] = [
+                'id' => 'MMBD' . str_pad($order->id, 4, '0', STR_PAD_LEFT),
+                'date' => date('Y-m-d', strtotime($order->created_at)),
+                'status' => $order->status,
+                'total' => (float) $order->payable,
+                'items' => $items
+            ];
+        }
+
+        // Build response
+        $response = [
+            'name' => trim($user->firstName . ' ' . $user->lastName),
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'orders' => $orderDetails
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $response
+        ]);
            }catch(Exception $e){
             return $this->sendError('Error retrieving user profile', $e->getMessage(),500);
            }

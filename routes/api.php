@@ -8,6 +8,7 @@ use App\Http\Controllers\api\v1\AboutController;
 use App\Http\Controllers\api\v1\AdminController;
 use App\Http\Controllers\api\v1\OrderController;
 use App\Http\Controllers\api\v1\CouponController;
+use App\Http\Controllers\api\v1\NavBarController;
 use App\Http\Controllers\api\v1\AddressController;
 use App\Http\Controllers\api\v1\ContactController;
 use App\Http\Controllers\api\v1\PaymentController;
@@ -19,10 +20,12 @@ use App\Http\Controllers\api\v1\DashboardController;
 use App\Http\Controllers\api\v1\SubscribeController;
 use App\Http\Controllers\api\v1\SubCategoryController;
 use App\Http\Controllers\api\v1\TopCategoryController;
+use App\Http\Controllers\api\v1\VideoBannerController;
 use App\Http\Controllers\api\v1\ReturnPolicyController;
 use App\Http\Controllers\api\v1\ProductReviewController;
 use App\Http\Controllers\api\v1\RefundPrivacyController;
 use App\Http\Controllers\api\v1\BottomCategoryController;
+use App\Http\Controllers\api\v1\CategoryBannerController;
 use App\Http\Controllers\api\v1\QuestionAnswerController;
 use App\Http\Controllers\api\v1\SubSubCategoryController;
 use App\Http\Controllers\api\v1\TermsConditionController;
@@ -136,6 +139,17 @@ Route::group(['prefix'=> 'v1'], function () {
 
     // product search by title
     Route::get('/search/product', [ProductController::class,'searchProduct']);
+
+    // get latest collections
+    Route::get('/latest/collection', [ProductController::class,'getLatestCollections']);
+    // latest 8 products
+    Route::get('/latest/product', [ProductController::class,'getLatestEightProducts']);
+
+    // unique size product by query cat and sub 
+    Route::get('/unique/size/product', [ProductController::class,'getUniqueSizeProduct']);
+
+    // product list
+    Route::get('/query/product/list', [ProductController::class,'getProductList']);
 
 });
 
@@ -259,7 +273,7 @@ Route::group(['prefix'=> 'v1'], function () {
 // SubSubCategory routes here
 Route::group(['prefix'=> 'v1'], function () {
     // Header Category
-    Route::get('/header/category', [HomeController::class,'getHeaderCategories']);
+    // Route::get('/header/category', [HomeController::class,'getHeaderCategories']);
 
     //  get header-footer 
     Route::get('/header/footer', [HomeController::class,'getHeaderFooter']);
@@ -449,7 +463,6 @@ Route::group(['prefix'=> 'v1'], function () {
 
            // Order routes here
            Route::group(['prefix'=> 'v1'], function () {
-            // get all terms and condition
             Route::get('/orders', [OrderController::class,'getOrder']);
 
             // get single order details
@@ -461,6 +474,9 @@ Route::group(['prefix'=> 'v1'], function () {
 
             // get order list by token (for customer)
             Route::get('/get/order/customer', [OrderController::class,'getOrderListByToken'])->middleware('api.auth');
+
+            // order tracking by order id or phone number 
+            Route::get('/order/tracking/{id}', [OrderController::class,'orderTracking']);
            });
 
 
@@ -476,22 +492,44 @@ Route::group(['prefix'=> 'v1'], function () {
 
         // Top category routes here
            Route::group(['prefix'=> 'v1'], function () {
-            // get all terms and condition
             Route::post('/top/category', [TopCategoryController::class,'store']);
             Route::post('/top/category/{id}', [TopCategoryController::class,'update']);
             Route::get('/top/category', [TopCategoryController::class,'getAll']);
             Route::delete('/top/category/{id}', [TopCategoryController::class,'delete']);
+
+            // frontend 
+            Route::get('/top/category/frontend', [TopCategoryController::class,'getAllForFrontend']);
 
            });
 
 
             // Bottom category routes here
            Route::group(['prefix'=> 'v1'], function () {
-            // get all terms and condition
             Route::post('/bottom/category', [BottomCategoryController::class,'store']);
             Route::post('/bottom/category/{id}', [BottomCategoryController::class,'update']);
             Route::get('/bottom/category', [BottomCategoryController::class,'getAll']);
             Route::delete('/bottom/category/{id}', [BottomCategoryController::class,'delete']);
+            // frontend
+            Route::get('/bottom/category/frontend', [BottomCategoryController::class,'getAllForFrontend']);
+
+           });
+
+              //  category banner routes here
+           Route::group(['prefix'=> 'v1'], function () {
+            Route::post('/banner/category', [CategoryBannerController::class,'store']);
+            Route::get('/banner/category', [CategoryBannerController::class,'getAll']);
+            // frontend
+            Route::get('/banner/category/frontend', [CategoryBannerController::class,'getAllForFrontend']);
+
+           });
+
+
+              //  Video banner routes here
+           Route::group(['prefix'=> 'v1'], function () {
+            Route::post('/video/banner', [VideoBannerController::class,'store']);
+            Route::get('/video/banner', [VideoBannerController::class,'getAll']);
+            // frontend
+            Route::get('/video/banner/frontend', [VideoBannerController::class,'getAllForFrontend']);
 
            });
 
@@ -499,7 +537,16 @@ Route::group(['prefix'=> 'v1'], function () {
 
 
 
+            /// Nav bar routes here
+           Route::group(['prefix'=> 'v1'], function () {
+            Route::get('/header/category', [NavBarController::class,'getAllNavItems']);
+           });
 
+
+             ///Category carousel routes here
+           Route::group(['prefix'=> 'v1'], function () {
+            Route::get('/header/category/slider', [CategoryCarouselController::class,'getAllCategoryCarouselForFrontend']);
+           });
 
 
 

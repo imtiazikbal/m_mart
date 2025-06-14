@@ -116,4 +116,24 @@ class CategoryCarouselController extends ResponseController
         return $this->sendError('Something went wrong'. $e->getMessage(), [], 500);
        }
     }
+
+    // getAllCategoryCarouselForFrontend
+    public function getAllCategoryCarouselForFrontend(){
+        try{
+        $categoryCarousel = DB::table('categories_carousel')
+        ->leftJoin('categories', 'categories_carousel.categoryId', '=', 'categories.id')
+        ->leftJoin('sub_categories', 'categories_carousel.subCategoryId', '=', 'sub_categories.id')
+        ->select(
+            
+            'categories_carousel.src as imageUrl',
+            'categories_carousel.title as title',
+            'categories.name as categoryName',
+        )
+        ->get();
+
+        return $this->sendResponse($categoryCarousel, 'Category Carousel fetched successfully');
+       }catch(Exception $e){
+        return $this->sendError('Something went wrong'. $e->getMessage(), [], 500);
+       }
+    }
 }

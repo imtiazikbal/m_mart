@@ -301,5 +301,90 @@ class OrderController extends ResponseController
     }
 }
 
+// orderTracking by orderId or phone number 
+public function orderTracking(Request $request, $id)
+{
+    try {
+        $user = DB::table('users')->where('phone', $id)->first();
+
+        if ($user) {
+            // User found by phone, get latest invoice
+            $orderQuery = DB::table('invoices')
+                ->where('invoices.userId', $user->id)
+                ->leftJoin('users', 'invoices.userId', '=', 'users.id')
+                ->leftJoin('invoice_products', 'invoices.id', '=', 'invoice_products.invoiceId')
+                ->leftJoin('products', 'invoice_products.productId', '=', 'products.id')
+                ->leftJoin('addresses', 'invoices.userId', '=', 'addresses.user_id')
+                ->select(
+                    'invoices.id as orderId',
+                    'invoices.status',
+                    'invoices.created_at as date',
+                    DB::raw("CONCAT(users.firstName, ' ', users.lastName) as name"),
+                    'users.phone',
+                    'addresses.address',
+                    DB::raw("GROUP_CONCAT(CONCAT(products.title, ' - ', invoice_products.size) SEPARATOR ', ') as items")
+                )
+                ->groupBy(
+                    'invoices.id', 'invoices.status', 'invoices.created_at',
+                    'users.firstName', 'users.lastName', 'users.phone', 'addresses.address'
+                )
+                ->latest('invoices.created_at') // If multiple orders exist, get latest
+                ->first();
+        } else {
+            // No user found by phone, treat input as order ID
+            $orderQuery = DB::table('invoices')
+                ->where('invoices.id', $id)
+                ->leftJoin('users', 'invoices.userId', '=', 'users.id')
+                ->leftJoin('invoice_products', 'invoices.id', '=', 'invoice_products.invoiceId')
+                ->leftJoin('products', 'invoice_products.productId', '=', 'products.id')
+                ->leftJoin('addresses', 'invoices.userId', '=', 'addresses.user_id')
+                ->select(
+                    'invoices.id as orderId',
+                    'invoices.status',
+                    'invoices.created_at as date',
+                    DB::raw("CONCAT(users.firstName, ' ', users.lastName) as name"),
+                    'users.phone',
+                    'addresses.address',
+                    DB::raw("GROUP_CONCAT(CONCAT(products.title, ' - ', invoice_products.size) SEPARATOR ', ') as items")
+                )
+                ->groupBy(
+                    'invoices.id', 'invoices.status', 'invoices.created_at',
+                    'users.firstName', 'users.lastName', 'users.phone', 'addresses.address'
+                )
+                ->first();
+        }
+
+        if (!$orderQuery) {
+            return response()->json([
+                'success' => true,
+                'data' => null
+            ]);
+        }
+
+        $response = [
+            'id' => 'MMBD' . str_pad($orderQuery->orderId, 4, '0', STR_PAD_LEFT),
+            'name' => $orderQuery->name,
+            'phone' => $orderQuery->phone,
+            'status' => $orderQuery->status,
+            'date' => date('Y-m-d', strtotime($orderQuery->date)),
+            'items' => array_map('trim', explode(',', $orderQuery->items ?? '')),
+            'address' => $orderQuery->address ?? ''
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => $response
+        ]);
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Something went wrong',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
+
 
 }
