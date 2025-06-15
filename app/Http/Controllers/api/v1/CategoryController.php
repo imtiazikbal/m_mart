@@ -53,7 +53,7 @@ class CategoryController extends ResponseController
         if ($validator->fails()) {
             return $this->sendError('Validation Error', $validator->errors()->toArray(), 422);
         }
-        $findCategoryByName = DB::table('categories')->where('name', $request->name)->first();
+        $findCategoryByName = DB::table('categories')->whereRaw('LOWER(name) = ?', [strtolower($request->name)])->whereNull('deleted_at')->where('status', 'Active')->first();
         if ($findCategoryByName) {
             return $this->sendError('Category already exists', [], 409);
         }
@@ -178,7 +178,7 @@ public function deleteCategory(Request $request, $id) {
          ->update(['deleted_at' => Carbon::now()]); // Soft delete
 
      // 8. Finally, delete the category
-     DB::table('categories')->where('id', $id)->update(['deleted_at' => Carbon::now()]); // Soft delete
+     DB::table('categories')->where('id', $id)->update(['deleted_at' => Carbon::now(),'status' => 'Inactive']); // Soft delete
 
     return $this->sendResponse(
         'Category deleted successfully', 'Category deleted successfully.');

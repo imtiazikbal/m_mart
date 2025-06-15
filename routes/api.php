@@ -45,7 +45,7 @@ Route::get('/user', function (Request $request) {
 // Admin routes
 Route::group(['prefix' => 'v1'], function () {
     
-    Route::post('/admin/signup', [AdminController::class,'signup']);
+    // Route::post('/admin/signup', [AdminController::class,'signup']);
     Route::post('/admin/login', [AdminController::class,'login']);
     Route::get('admin', [AdminController::class,'tokenVarificationForAdmin'])->middleware('api.auth');
     Route::post('/admin/auth/verify', [AdminController::class,'verifyOtp']);
@@ -209,7 +209,7 @@ Route::group(['prefix'=> 'v1'], function () {
 // Category routes here
 Route::group(['prefix'=> 'v1'], function () {
     // Store Category
-    Route::post('/category', [CategoryController::class,'storeCategory'])->middleware('api.auth');
+     Route::post('/category', [CategoryController::class,'storeCategory'])->middleware('api.auth');
      // Update Category
      Route::post('/category/{id}', [CategoryController::class,'updateCategory'])->middleware('api.auth');
      // Update category Status
