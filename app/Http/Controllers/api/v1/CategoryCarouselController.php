@@ -128,6 +128,7 @@ class CategoryCarouselController extends ResponseController
             'categories_carousel.src as imageUrl',
             'categories_carousel.title as title',
             'categories.name as categoryName',
+            'sub_categories.name as subCategoryName',
         )
         ->get();
 
