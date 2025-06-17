@@ -154,4 +154,42 @@ public function verifyOtp(Request $request)
                 }
     
         }
+
+        // varifyToken
+        public function varifyToken(Request $request){
+               $token = $request->token;
+
+        if (!$token) {
+            return $this->sendError([], 'Token is required', 400);
+        }
+
+        $data = JWTToken::adminTokenVarification($token);
+
+        if ($data === 'unauthorized') {
+ $response = [
+            'isAuthorized' => "0"
+        
+    ];
+    return $this->sendResponse($response, 'Admin logged in successfully.');
+            
+}
+
+
+
+        $admin = DB::table('admins')->where('id', $data->userID)->first();
+if ($admin) {
+    $response = [
+        
+            'isAuthorized' => "1"
+        
+    ];
+    return $this->sendResponse($response, 'Admin logged in successfully.');
+} else {
+    $response = [
+            'isAuthorized' => "0"
+        
+    ];
+    return $this->sendResponse($response, 'Admin logged in successfully.');}
+            
+        }
 }

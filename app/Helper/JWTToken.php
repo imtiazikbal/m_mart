@@ -75,4 +75,25 @@ class JWTToken
             return 'unauthorized';
         }
     }
+
+    // admin varify token
+    public static function adminTokenVarification($token){
+        try {
+            $key = env('JWT_TOKEN', 'secret');
+            $decoded = JWT::decode($token, new Key($key, 'HS256'));
+
+            // Ensure payload contains necessary data
+            if (isset($decoded->userEmail, $decoded->userID)) {
+                return $decoded;
+            }
+
+            Log::warning('JWT verification failed: missing required claims.', ['token' => $token]);
+            return 'unauthorized';
+
+        } catch (Exception $exception) {
+            Log::error('JWT verification error: ' . $exception->getMessage());
+            return 'unauthorized';
+        }
+    }
+
 }

@@ -49,6 +49,9 @@ Route::group(['prefix' => 'v1'], function () {
     Route::post('/admin/login', [AdminController::class,'login']);
     Route::get('admin', [AdminController::class,'tokenVarificationForAdmin'])->middleware('api.auth');
     Route::post('/admin/auth/verify', [AdminController::class,'verifyOtp']);
+    Route::post('/admin/verify-token', [AdminController::class,'varifyToken']);
+
+    
 
 
 });
