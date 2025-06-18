@@ -188,38 +188,36 @@ private function storeInvoiceProducts($invoiceId, array $cartData, $userId)
 
 
 
-
-
-
-
-         public function PaymentSuccess(Request $request)
-    {
-        try {
-           $data = SSLCommerz::PaymentSuccess($request->query('tran_id'), $request->input('val_id'));
-            return $this->sendResponse($data, 'Payments retrieved successfully.');
-
-        } catch (Exception $e) {
-            return $this->sendError('Error creating payment method'.$e->getMessage(), [], 500);
-        }
+public function PaymentSuccess(Request $request)
+{
+    try {
+        SSLCommerz::PaymentSuccess($request->query('tran_id'), $request->input('val_id'));
+        $order = DB::table('invoices')->where(['tranId' => $request->query('tran_id')])->first();
+        $redirectUrl = 'https://mehranmartbd.com/payment?status=Success&orderId=' . $order->id;
+        return redirect($redirectUrl);
+    } catch (Exception $e) {
+        return $this->sendError('Error creating payment method: ' . $e->getMessage(), [], 500);
     }
+}
 
-    public function PaymentFail(Request $request)
-    {
-        try {
-            SSLCommerz::PaymentFail($request->query('tran_id'));
-            return $this->sendError('Payment fail', [], 500);
-        } catch (Exception $e) {
-            return $this->sendError('Error creating payment method'.$e->getMessage(), [], 500);
-        }
+public function PaymentFail(Request $request)
+{
+    try {
+        SSLCommerz::PaymentFail($request->query('tran_id'));
+        return redirect('https://mehranmartbd.com/payment?status=Failed');
+    } catch (Exception $e) {
+        return $this->sendError('Error creating payment method: ' . $e->getMessage(), [], 500);
     }
-    public function PaymentCancel(Request $request)
-    {
-        try {
-            SSLCommerz::PaymentCancel($request->query('tran_id'));
-            // return redirect('/Profile');
-            return $this->sendError('Payment cancel', [], 500);
-        } catch (Exception $e) {
-            return $this->sendError('Error creating payment method'.$e->getMessage(), [], 500);
-        }
+}
+
+public function PaymentCancel(Request $request)
+{
+    try {
+        SSLCommerz::PaymentCancel($request->query('tran_id'));
+        return redirect('https://mehranmartbd.com/payment?status=Canceled');
+    } catch (Exception $e) {
+        return $this->sendError('Error creating payment method: ' . $e->getMessage(), [], 500);
     }
+}
+
 }
