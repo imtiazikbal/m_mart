@@ -222,4 +222,26 @@ public function deleteCategory(Request $request, $id) {
          // Return the data in the required response structure
          return $this->sendResponse($responseData,'Header categories retrieved successfully');
      }
+
+     // getUniqueCategory status active 
+     public function getUniqueCategoryStatusActive() {
+    try {
+        // Fetch unique category names where status is 'Active' and not soft-deleted
+        $categoryNames = DB::table('categories')
+            ->where('status', 'Active')
+            ->whereNull('deleted_at')
+            ->distinct()
+            ->pluck('name');
+
+        if ($categoryNames->isEmpty()) {
+            return $this->sendError('No active categories found', [], 404);
+        }
+
+        return $this->sendResponse($categoryNames, 'Active categories retrieved successfully.');
+        
+    } catch (Exception $e) {
+        return $this->sendError('Error retrieving categories', $e->getMessage(), 500);
+    }
+}
+
 }

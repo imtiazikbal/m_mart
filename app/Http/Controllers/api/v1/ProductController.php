@@ -65,6 +65,7 @@ class ProductController extends ResponseController
 
         // Fetch related products (same subCategory, excluding current)
         $relatedRaw = DB::table('products')
+            ->where('categoryId', $product->categoryId)
             ->where('subCategoryId', $product->subCategoryId)
             ->where('id', '!=', $productId)
             ->whereNull('deleted_at')
@@ -1060,8 +1061,6 @@ public function getProductList(Request $request)
     try {
         // Input parameters
         $search = $request->query('search');
-        $categoryName = $request->query('category');
-        $subCategoryName = $request->query('subCategory');
         $page = $request->query('page', 1);
         $limit = $request->query('limit', 20);
         $minPrice = $request->query('minPrice', 0);
@@ -1083,48 +1082,38 @@ public function getProductList(Request $request)
             )
             ->whereBetween('products.price', [$minPrice, $maxPrice]);
 
-        // Apply search filter
-        if ($search) {
-            $query->where('products.title', 'like', '%' . $search . '%');
-        }
-
-        // Apply category filter
-        if ($categoryName) {
-            $category = DB::table('categories')->where('name', $categoryName)->first();
-            if ($category) {
-                $query->where('products.categoryId', $category->id);
+        // Smart search handling
+        if ($search !== null && trim($search) !== '') {
+            // Check for title match
+            $titleMatch = clone $query;
+            $titleMatch->where('products.title', 'like', '%' . $search . '%');
+            if ($titleMatch->count() > 0) {
+                $query->where('products.title', 'like', '%' . $search . '%');
             } else {
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'products' => [],
-                        'currentPage' => (int)$page,
-                        'totalPages' => 0,
-                        'totalItems' => 0,
-                        'minPrice' => (float)0,
-                        'maxPrice' => (float)0,
-                    ]
-                ]);
-            }
-        }
-
-        // Apply sub-category filter
-        if ($subCategoryName) {
-            $subCategory = DB::table('sub_categories')->where('name', $subCategoryName)->first();
-            if ($subCategory) {
-                $query->where('products.subCategoryId', $subCategory->id);
-            } else {
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'products' => [],
-                        'currentPage' => (int)$page,
-                        'totalPages' => 0,
-                        'totalItems' => 0,
-                        'minPrice' => (float)0,
-                        'maxPrice' => (float)0,
-                    ]
-                ]);
+                // Try matching category
+                $category = DB::table('categories')->where('name', $search)->first();
+                if ($category) {
+                    $query->where('products.categoryId', $category->id);
+                } else {
+                    // Try matching sub-category
+                    $subCategory = DB::table('sub_categories')->where('name', $search)->first();
+                    if ($subCategory) {
+                        $query->where('products.subCategoryId', $subCategory->id);
+                    } else {
+                        // If nothing matches, return empty response
+                        return response()->json([
+                            'success' => true,
+                            'data' => [
+                                'products' => [],
+                                'currentPage' => (int)$page,
+                                'totalPages' => 0,
+                                'totalItems' => 0,
+                                'minPrice' => (float)0,
+                                'maxPrice' => (float)0,
+                            ]
+                        ]);
+                    }
+                }
             }
         }
 
@@ -1144,7 +1133,7 @@ public function getProductList(Request $request)
         $totalPages = ceil($totalItems / $limit);
         $products = $query->skip(($page - 1) * $limit)->take($limit)->get();
 
-        // Get min/max price from all products for UI reference
+        // Price range for all products
         $priceRange = DB::table('products')->select(
             DB::raw('MIN(price) as minPrice'),
             DB::raw('MAX(price) as maxPrice')

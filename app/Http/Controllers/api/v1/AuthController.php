@@ -16,50 +16,64 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends ResponseController
 {
-    public function login(Request $request) {
-       try{
-         
-    
-        $phone = $request->phone;
-        $concateEmail = $phone . '@gmail.com';
+   public function login(Request $request) {
+    try {
+        // Validate input
+        $request->validate([
+            'password' => 'required|string|min:5',
+            'email' => 'nullable|email|required_without:phone',
+            'phone' => 'nullable|string|required_without:email',
+        ]);
 
-        $user = DB::table('users')->where('email', $concateEmail)->first();
+        // Find user by email or phone
+        $user = User::where('email', $request->email)
+                    ->orWhere('phone', $request->phone)
+                    ->first();
 
-   
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return $this->sendError('Invalid credentials', 'The email/phone or password is incorrect', 401);
+        }
 
-      if ($user) {
-        // Token generation
+        // Generate token (custom JWT or Laravel token)
         $token = JWTToken::createToken($user->email, $user->id);
-    
-         return $this->sendResponse([
-                'token' => $token,
-            ], 'Login successfully');
-       }
 
-        $otp = random_int(100000, 999999); // Secure OTP generation
+        return $this->sendResponse([
+            'token' => $token,
+        ], 'Login successfully');
+        
+    } catch (Exception $e) {
+        return $this->sendError('Login failed', $e->getMessage(), 500);
+    }
+}
+
+    // singnup
+    public function singnup(Request $request) {
+        try{
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string',
+                'email' => 'required|email|unique:users',
+                'password' => 'required|string|min:5',
+                'phone' => 'required|string',
+            ]);
     
-        $newuser = User::updateOrCreate(
-            ['phone' => $phone],
-            [
-                'email' => $phone . '@gmail.com',
-                'otp' => $otp,
-                'otp_expiry' => now()->addMinutes(10),
-                'otp_sent_at' => now(),
-            ]
-        );
+            if ($validator->fails()) {
+                return $this->sendError('Validation Error', $validator->errors(), 422);
+            }
     
-        // Send OTP to user's email
-//Mail::to($email)->send(new MailSender('OTP', $otp, $user->email));
+            $user = User::create([
+                'firstName' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone' => $request->phone
+            ]);
+            $token = JWTToken::createToken($user->email, $user->id);
     
-        // Token generation
-        $token = JWTToken::createToken($newuser->email, $newuser->id);
-    
-         return $this->sendResponse([
+            return $this->sendResponse([
                 'token' => $token,
-            ], 'OTP verified successfully');
-       }catch(Exception $e){
-        return $this->sendError('', $e->getMessage());
-       }
+            ], 'Signup successfully');
+        }catch(Exception $e){
+            return $this->sendError('', $e->getMessage());
+        }
     }
     
 

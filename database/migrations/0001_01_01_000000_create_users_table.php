@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('firstName')->nullable();
             $table->string('lastName')->nullable();
-            $table->string('email')->unique();
-            $table->string(column: 'phone')->unique()->nullable();
+            $table->string('email')->nullable();
+            $table->string(column: 'phone')->nullable();
+            $table->string('password')->nullable();
             $table->string(column: 'otp')->nullable();
             $table->timestamp(column: 'otp_expiry')->nullable();
             $table->timestamp(column: 'otp_sent_at')->nullable();

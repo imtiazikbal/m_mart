@@ -59,7 +59,9 @@ Route::group(['prefix' => 'v1'], function () {
 
 // Custom routes
 Route::group(['prefix' => 'v1'], function () {
-    Route::post('/customer/auth', [AuthController::class,'login']);
+    Route::post('/customer/auth/login', [AuthController::class,'login']);
+    Route::post('/customer/auth/signup', [AuthController::class,'singnup']);
+
     Route::post('/customer/auth/verify', [AuthController::class,'verifyOtp']);
     Route::get('/customer/auth', [AuthController::class,'tokenVarification'])->middleware('api.auth');
 
@@ -224,6 +226,9 @@ Route::group(['prefix'=> 'v1'], function () {
 
     // Gel all category sub sub sub cat for admin 
     Route::get('/admin/product/allcategory', [CategoryController::class,'getAllCategoryForAdmin']);
+
+    // get all unique category
+    Route::get('/unique/category', [CategoryController::class,'getUniqueCategoryStatusActive']);
 });
 
 
