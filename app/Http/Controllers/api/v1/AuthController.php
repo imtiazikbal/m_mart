@@ -21,13 +21,12 @@ class AuthController extends ResponseController
         // Validate input
         $request->validate([
             'password' => 'required|string|min:5',
-            'email' => 'nullable|email|required_without:phone',
-            'phone' => 'nullable|string|required_without:email',
+            'email' => 'nullable',
         ]);
 
         // Find user by email or phone
         $user = User::where('email', $request->email)
-                    ->orWhere('phone', $request->phone)
+                    ->orWhere('phone', $request->email)
                     ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
